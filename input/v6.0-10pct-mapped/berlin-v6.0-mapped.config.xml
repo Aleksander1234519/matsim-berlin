@@ -63,7 +63,6 @@
 		<param name="trafficDynamics" value="kinematicWaves"/>
 		<param name="vehiclesSource" value="modeVehicleTypesFromVehiclesData"/>
 		<param name="insertingWaitingVehiclesBeforeDrivingVehicles" value="true"/>
-		<param name="usePersonIdForMissingVehicleId" value="false"/>
 	</module>
 
 	<module name="subtourModeChoice">
