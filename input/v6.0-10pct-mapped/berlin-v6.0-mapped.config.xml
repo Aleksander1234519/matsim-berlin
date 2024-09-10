@@ -19,7 +19,7 @@
 		<param name="numberOfThreads" value="16"/>
 	</module>
 	<module name="network">
-		<param name="inputNetworkFile" value="./mapped-with-pt-network.xml.gz"/>
+		<param name="inputNetworkFile" value="./mapped-with-bus-lanes-network.xml.gz"/>
 	</module>
 	<module name="plans">
 		<param name="inputPlansFile" value="https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v6.0/input/berlin-v6.0-0.1pct.plans-initial.xml.gz"/>
@@ -30,7 +30,7 @@
 			   value="https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v5.5-10pct/input/berlin-v5-mode-vehicle-types.xml"/>
 	</module>
 	<module name="transit">
-		<param name="transitScheduleFile" value="./mapped-schedule-v6.0.2.xml.gz"/>
+		<param name="transitScheduleFile" value="./mapped-with-bus-lanes-schedule.xml.gz"/>
 		<param name="useTransit" value="true"/>
 		<param name="vehiclesFile" value="./gtfs-vehicles-v6.0.2.xml"/>
 	</module>

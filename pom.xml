@@ -32,6 +32,12 @@
 
 	<dependencies>
 
+		<dependency>
+			<groupId>org.matsim</groupId>
+			<artifactId>pt2matsim</artifactId>
+			<version>24.4</version>
+		</dependency>
+
 		<!-- This is the matsim "core": -->
 		<dependency>
 			<groupId>org.matsim</groupId>
@@ -459,6 +465,10 @@
 
 	<repositories>
 		<!--Note that in general repositories are not transitive, so they need to be repeated at every level where needed.-->
+		<repository>
+			<id>pt2matsim</id>
+			<url>https://repo.matsim.org/repository/matsim/</url>
+		</repository>
 		<repository>
 			<!-- Geotools is not on Maven central -->
 			<id>osgeo</id>
