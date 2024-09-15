@@ -16,7 +16,7 @@
 		<costInformation>
 
 		</costInformation>
-		<passengerCarEquivalents pce="0.0028"/> <!-- original value = 2.8 -->
+		<passengerCarEquivalents pce="0.28"/> <!-- original value = 2.8 -->
 		<networkMode networkMode="pt"/>
 		<flowEfficiencyFactor factor="1.0"/>
 	</vehicleType>
@@ -35,7 +35,7 @@
 		<costInformation>
 
 		</costInformation>
-		<passengerCarEquivalents pce="0.0028"/> <!-- original value = 2.8 -->
+		<passengerCarEquivalents pce="0.28"/> <!-- original value = 2.8 -->
 		<networkMode networkMode="pt"/>
 		<flowEfficiencyFactor factor="1.0"/>
 	</vehicleType>
@@ -54,7 +54,7 @@
 		<costInformation>
 
 		</costInformation>
-		<passengerCarEquivalents pce="0.0271"/> <!-- original value = 27.1 -->
+		<passengerCarEquivalents pce="2.71"/> <!-- original value = 27.1 -->
 		<networkMode networkMode="pt"/>
 		<flowEfficiencyFactor factor="1.0"/>
 	</vehicleType>
@@ -73,7 +73,7 @@
 		<costInformation>
 
 		</costInformation>
-		<passengerCarEquivalents pce="0.0271"/> <!-- original value = 27.1 -->
+		<passengerCarEquivalents pce="2.71"/> <!-- original value = 27.1 -->
 		<networkMode networkMode="pt"/>
 		<flowEfficiencyFactor factor="1.0"/>
 	</vehicleType>
@@ -92,7 +92,7 @@
 		<costInformation>
 
 		</costInformation>
-		<passengerCarEquivalents pce="0.0052"/> <!-- original value = 5.2 -->
+		<passengerCarEquivalents pce="0.52"/> <!-- original value = 5.2 -->
 		<networkMode networkMode="pt"/>
 		<flowEfficiencyFactor factor="1.0"/>
 	</vehicleType>
@@ -111,7 +111,7 @@
 		<costInformation>
 
 		</costInformation>
-		<passengerCarEquivalents pce="0.0271"/> <!-- original value = 27.1 -->
+		<passengerCarEquivalents pce="2.71"/> <!-- original value = 27.1 -->
 		<networkMode networkMode="pt"/>
 		<flowEfficiencyFactor factor="1.0"/>
 	</vehicleType>
@@ -130,7 +130,7 @@
 		<costInformation>
 
 		</costInformation>
-		<passengerCarEquivalents pce="0.0071"/> <!-- original value = 7.1 -->
+		<passengerCarEquivalents pce="0.71"/> <!-- original value = 7.1 -->
 		<networkMode networkMode="pt"/>
 		<flowEfficiencyFactor factor="1.0"/>
 	</vehicleType>
