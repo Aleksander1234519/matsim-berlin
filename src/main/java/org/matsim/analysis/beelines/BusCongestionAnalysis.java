@@ -1,5 +1,9 @@
 package org.matsim.analysis.beelines;
 
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.LinkEnterEvent;
@@ -9,12 +13,14 @@ import org.matsim.api.core.v01.events.handler.LinkLeaveEventHandler;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.application.MATSimAppCommand;
+import org.matsim.application.options.ShpOptions;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
+import org.matsim.core.utils.geometry.geotools.MGC;
 import org.matsim.pt.transitSchedule.api.TransitScheduleReader;
 import picocli.CommandLine;
 
@@ -48,6 +54,9 @@ public class BusCongestionAnalysis implements MATSimAppCommand {
 
 	@CommandLine.Option(names = "--outputAnalysis", description = "Folder in which to put the analysis-outputs", defaultValue = "./beeline-data/busCongestion")
 	Path analysisOut;
+
+	@CommandLine.Mixin
+	private ShpOptions shp;
 
 	/**
 	 * Handler for the events file.
@@ -98,6 +107,8 @@ public class BusCongestionAnalysis implements MATSimAppCommand {
 		TravelTimeCalculator beelinesTtc = new AnalysisEventHandler(beelinesNetwork, beelinesEventsIn).getTravelTimeCalculator();
 		TravelTimeCalculator mappedTtc = new AnalysisEventHandler(mappedNetwork, mappedEventsIn).getTravelTimeCalculator();
 
+		Geometry geom = shp.getGeometry();
+
 		// Read in the links and routes of the mapped scenario. We do not care about the beelines from the base-case
 		List<Id<Link>> linksToConsider = new LinkedList<>();
 		for (var line : mappedScenario.getTransitSchedule().getTransitLines().values()) {
@@ -109,6 +120,16 @@ public class BusCongestionAnalysis implements MATSimAppCommand {
 					}
 				}
 			}
+		}
+
+		GeometryFactory geoFactory = new GeometryFactory();
+		Map<Id<Link>, Boolean> linkId2inShapefile = new HashMap<>();
+		for (Id<Link> linkId : linksToConsider) {
+			LineString line = geoFactory.createLineString(new Coordinate[]{
+				MGC.coord2Coordinate(mappedNetwork.getLinks().get(linkId).getFromNode().getCoord()),
+				MGC.coord2Coordinate(mappedNetwork.getLinks().get(linkId).getToNode().getCoord())
+			});
+			linkId2inShapefile.put(linkId, line.intersects(geom));
 		}
 
 		// Compute the deltaTT for every link, that got a bus-route on it
@@ -127,6 +148,25 @@ public class BusCongestionAnalysis implements MATSimAppCommand {
 		bw.newLine();
 
 		for (var e : linkId2dTT.entrySet()) {
+			bw.write(
+				e.getKey() + ";" +
+					mappedNetwork.getLinks().get(e.getKey()).getLength() + ";" +
+					beelinesTtc.getLinkTravelTimes().getLinkTravelTime(beelinesNetwork.getLinks().get(e.getKey()), 0, null, null) + ";" +
+					mappedTtc.getLinkTravelTimes().getLinkTravelTime(mappedNetwork.getLinks().get(e.getKey()), 0, null, null) + ";" +
+					e.getValue());
+			bw.newLine();
+		}
+		bw.close();
+
+		// Write deltaTT and link-length for filtered links
+		file = analysisOut.resolve("busCongestion_filter.csv").toString();
+		bw = new BufferedWriter(new FileWriter(file));
+		bw.write(String.join(";", "linkId", "length", "beelineTravelTime", "mappedTravelTime", "deltaTravelTime"));
+		bw.newLine();
+
+		for (var e : linkId2dTT.entrySet()) {
+			if (!linkId2inShapefile.get(e.getKey())) continue;
+
 			bw.write(
 				e.getKey() + ";" +
 					mappedNetwork.getLinks().get(e.getKey()).getLength() + ";" +
