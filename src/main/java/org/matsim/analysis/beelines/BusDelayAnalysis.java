@@ -20,19 +20,16 @@ import picocli.CommandLine;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Checks how many buses were late and how large the delay was.
  */
 public class BusDelayAnalysis implements MATSimAppCommand {
-	@CommandLine.Option(names = "--inputEvents", defaultValue = "./beeline-data/.beelines/berlin-v6.0-mapped.output_events.xml.gz")
+	@CommandLine.Option(names = "--inputEvents", defaultValue = "./beeline-data/.mapped/berlin-v6.0-mapped.output_events.xml.gz")
 	Path eventsIn;
 
-	@CommandLine.Option(names = "--transitSchedule", defaultValue = "./beeline-data/.beelines/berlin-v6.0-mapped.output_transitSchedule.xml.gz")
+	@CommandLine.Option(names = "--transitSchedule", defaultValue = "./beeline-data/.mapped/berlin-v6.0-mapped.output_transitSchedule.xml.gz")
 	Path scheduleIn;
 
 	@CommandLine.Option(names = "--outputAnalysis", description = "Folder in which to put the analysis-outputs", defaultValue = "./beeline-data/busDelayAnalysis")
@@ -66,12 +63,12 @@ public class BusDelayAnalysis implements MATSimAppCommand {
 		/**
 		 * List of all used facilityIds
 		 */
-		private final List<Id<TransitStopFacility>> usedFacilityIds = new LinkedList<>();
+		private final Set<Id<TransitStopFacility>> usedFacilityIds = new HashSet<>();
 
 		/**
 		 * List of all used vehicleIds
 		 */
-		private final List<Id<Vehicle>> usedVehicleIds = new LinkedList<>();
+		private final Set<Id<Vehicle>> usedVehicleIds = new HashSet<>();
 
 		private AnalysisEventHandler(Path eventsIn) {
 			EventsManager manager = EventsUtils.createEventsManager();
@@ -112,13 +109,11 @@ public class BusDelayAnalysis implements MATSimAppCommand {
 		new TransitScheduleReader(scenario).readFile(scheduleIn.toString());
 
 		// Check which facilities are in a shapefile
-		System.out.println("Checking which facilities lie in the shapefile. This step may take a while ...");
 		Geometry geom = shp.getGeometry();
 		Map<Id<TransitStopFacility>, Boolean> facilityId2inShapefile = new HashMap<>();
 		for (Id<TransitStopFacility> facilityId : analysisHandler.usedFacilityIds) {
 			facilityId2inShapefile.put(facilityId, geom.contains(MGC.coord2Point(scenario.getTransitSchedule().getFacilities().get(facilityId).getCoord())));
 		}
-		System.out.println("Finished checking!");
 
 		// Save as csv-output
 
@@ -160,61 +155,141 @@ public class BusDelayAnalysis implements MATSimAppCommand {
 		}
 		bw.close();
 
-		/*
-		// File 3: .csv with averaged data aggregated by facilities (timesliced)
+		// File 3: Save all entries, which lie inside the shapefile
+		file = analysisOut.resolve("allDelays_filtered.csv").toString();
+		bw = new BufferedWriter(new FileWriter(file));
+		bw.write(String.join(";", "facilityId", "vehicleId", "time", "delay"));
+		bw.newLine();
+		for (DepartureEntry entry : analysisHandler.allDelays) {
+			if (!facilityId2inShapefile.get(entry.facilityId)) continue;
+
+			bw.write(entry.facilityId.toString());
+			bw.write(";" + entry.vehicleId);
+			bw.write(";" + entry.time);
+			bw.write(";" + entry.delay);
+			bw.newLine();
+		}
+
+		// File 4: .csv with averaged data for all (time-sliced), which lie inside the shapefile
+		file = analysisOut.resolve("avgDelays_filtered.csv").toString();
+		bw = new BufferedWriter(new FileWriter(file));
+		bw.write(String.join(";", "intervalStart", "intervalEnd", "avgDelay"));
+		bw.newLine();
+		for (double t = interval; t < 86400; t += interval) {
+			int entries = 0;
+			double sum = 0;
+
+			// This second loop is not efficient, but it is still fast enough
+			for (DepartureEntry entry : analysisHandler.allDelays) {
+				if (entry.time < t - interval) continue;
+				if (entry.time >= t) break;
+				if (!facilityId2inShapefile.get(entry.facilityId)) continue;
+
+				entries++;
+				sum += entry.delay;
+			}
+
+			System.out.println(sum + "/" + entries + "=" + (sum / entries));
+			bw.write(String.valueOf(t - interval));
+			bw.write(";" + t);
+			bw.write(";" + sum / entries);
+			bw.newLine();
+		}
+		bw.close();
+
+		// File 5: .csv with averaged data aggregated by facilities (time-sliced)
 		file = analysisOut.resolve("facilityDelays.csv").toString();
 		bw = new BufferedWriter(new FileWriter(file));
-		bw.write(String.join(";", "facilityId", "intervalStart", "intervalEnd", "avgDelay"));
+		bw.write(String.join(";", "facilityId", "minDelay", "avgDelay", "maxDelay"));
 		bw.newLine();
-		for (double t = interval; t < 86400; t += interval){
-			for (Id<TransitStopFacility> id : analysisHandler.allFacilityIds){
+		for (double t = interval; t < 86400; t += interval) {
+			for (Id<TransitStopFacility> id : analysisHandler.usedFacilityIds) {
 				int entries = 0;
+				double min = Double.MAX_VALUE;
 				double sum = 0;
+				double max = Double.MIN_VALUE;
 
-				for (DepartureEntry entry : analysisHandler.facilityId2Delays.get(id)){
-					if (entry.time < t-interval) continue;
+
+				for (DepartureEntry entry : analysisHandler.facilityId2Delays.get(id)) {
+					if (entry.time < t - interval) continue;
 					if (entry.time >= t) break;
 					entries++;
 					sum += entry.delay;
+					if (entry.delay < min) min = entry.delay;
+					if (entry.delay > max) max = entry.delay;
 				}
 
+				if (min == Double.MAX_VALUE) min = 0;
+				if (max == Double.MIN_VALUE) max = 0;
+
 				bw.write(id.toString());
-				bw.write(";" + (t-interval));
-				bw.write(";" + t);
-				bw.write(";" + sum/entries);
+				bw.write(";" + min);
+				bw.write(";" + sum / entries);
+				bw.write(";" + max);
 				bw.newLine();
 			}
 		}
 		bw.close();
 
-		// File 4: .csv with averaged data aggregated by vehicle (timesliced)
+		// File 6: .csv with averaged data aggregated by facilities (time-sliced), which lie inside the shapefile
+		file = analysisOut.resolve("facilityDelays_filtered.csv").toString();
+		bw = new BufferedWriter(new FileWriter(file));
+		bw.write(String.join(";", "facilityId", "minDelay", "avgDelay", "maxDelay"));
+		bw.newLine();
+		for (Id<TransitStopFacility> id : analysisHandler.usedFacilityIds) {
+			int entries = 0;
+			double min = Double.MAX_VALUE;
+			double sum = 0;
+			double max = Double.MIN_VALUE;
+
+			for (DepartureEntry entry : analysisHandler.facilityId2Delays.get(id)) {
+				if (!facilityId2inShapefile.get(entry.facilityId)) continue;
+
+				entries++;
+				sum += entry.delay;
+				if (entry.delay < min) min = entry.delay;
+				if (entry.delay > max) max = entry.delay;
+			}
+
+			if (min == Double.MAX_VALUE) min = 0;
+			if (max == Double.MIN_VALUE) max = 0;
+
+			bw.write(id.toString());
+			bw.write(";" + min);
+			bw.write(";" + sum / entries);
+			bw.write(";" + max);
+			bw.newLine();
+		}
+		bw.close();
+
+		// File 7: .csv with averaged data aggregated by vehicle (time-sliced)
 		file = analysisOut.resolve("vehicleDelays.csv").toString();
 		bw = new BufferedWriter(new FileWriter(file));
-		bw.write(String.join(";", "vehicleId", "intervalStart", "intervalEnd", "avgDelay"));
+		bw.write(String.join(";", "vehicleId", "minDelay", "avgDelay", "maxDelay"));
 		bw.newLine();
-		for (double t = interval; t < 86400; t += interval){
-			for (Id<Vehicle> id : analysisHandler.allVehicleIds){
-				int entries = 0;
-				double sum = 0;
+		for (Id<Vehicle> id : analysisHandler.usedVehicleIds) {
+			int entries = 0;
+			double min = Double.MAX_VALUE;
+			double sum = 0;
+			double max = Double.MIN_VALUE;
 
-				for (DepartureEntry entry : analysisHandler.vehicleId2Delays.get(id)){
-					if (entry.time < t-interval) continue;
-					if (entry.time >= t) break;
-					entries++;
-					sum += entry.delay;
-				}
-
-				bw.write(id.toString());
-				bw.write(";" + (t-interval));
-				bw.write(";" + t);
-				bw.write(";" + sum/entries);
-				bw.newLine();
+			for (DepartureEntry entry : analysisHandler.vehicleId2Delays.get(id)) {
+				entries++;
+				sum += entry.delay;
+				if (entry.delay < min) min = entry.delay;
+				if (entry.delay > max) max = entry.delay;
 			}
-		}
-		bw.close();*/
 
-		//TODO General data (total punctuality, total avg, percentiles, ...)
-		//TODO add punctuality to all .csv
+			if (min == Double.MAX_VALUE) min = 0;
+			if (max == Double.MIN_VALUE) max = 0;
+
+			bw.write(id.toString());
+			bw.write(";" + min);
+			bw.write(";" + sum / entries);
+			bw.write(";" + max);
+			bw.newLine();
+		}
+		bw.close();
 
 		return 0;
 	}
