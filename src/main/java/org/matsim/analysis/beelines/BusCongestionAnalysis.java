@@ -56,7 +56,7 @@ public class BusCongestionAnalysis implements MATSimAppCommand {
 
 		TravelTimeCalculator ttc;
 
-		private AnalysisEventHandler(Network network, Path eventsIn){
+		private AnalysisEventHandler(Network network, Path eventsIn) {
 			TravelTimeCalculator.Builder ttcb = new TravelTimeCalculator.Builder(network);
 			ttcb.setCalculateLinkTravelTimes(true);
 			ttc = ttcb.build();
@@ -65,7 +65,7 @@ public class BusCongestionAnalysis implements MATSimAppCommand {
 			EventsUtils.readEvents(manager, eventsIn.toString());
 		}
 
-		private TravelTimeCalculator getTravelTimeCalculator(){
+		private TravelTimeCalculator getTravelTimeCalculator() {
 			return ttc;
 		}
 
@@ -79,7 +79,6 @@ public class BusCongestionAnalysis implements MATSimAppCommand {
 			ttc.handleEvent(event);
 		}
 	}
-
 
 	public static void main(String[] args) {
 		new BusCongestionAnalysis().execute(args);
@@ -101,11 +100,11 @@ public class BusCongestionAnalysis implements MATSimAppCommand {
 
 		// Read in the links and routes of the mapped scenario. We do not care about the beelines from the base-case
 		List<Id<Link>> linksToConsider = new LinkedList<>();
-		for (var line : mappedScenario.getTransitSchedule().getTransitLines().values()){
-			for (var route : line.getRoutes().values()){
-				for (var linkId: route.getRoute().getLinkIds()){
+		for (var line : mappedScenario.getTransitSchedule().getTransitLines().values()) {
+			for (var route : line.getRoutes().values()) {
+				for (var linkId : route.getRoute().getLinkIds()) {
 					// This link must exist in the base-case, otherwise we can not compare the travel-time. It should also allow car-mode, so that we know that it is a bus link
-					if(beelinesNetwork.getLinks().containsKey(linkId) && beelinesNetwork.getLinks().get(linkId).getAllowedModes().contains("car")){
+					if (beelinesNetwork.getLinks().containsKey(linkId) && beelinesNetwork.getLinks().get(linkId).getAllowedModes().contains("car")) {
 						linksToConsider.add(linkId);
 					}
 				}
@@ -114,21 +113,26 @@ public class BusCongestionAnalysis implements MATSimAppCommand {
 
 		// Compute the deltaTT for every link, that got a bus-route on it
 		Map<Id<Link>, Double> linkId2dTT = new HashMap<>();
-		for(Id<Link> linkId : linksToConsider){
+		for (Id<Link> linkId : linksToConsider) {
 			double beelinesTT = beelinesTtc.getLinkTravelTimes().getLinkTravelTime(beelinesNetwork.getLinks().get(linkId), 0, null, null);
 			double mappedTT = mappedTtc.getLinkTravelTimes().getLinkTravelTime(mappedNetwork.getLinks().get(linkId), 0, null, null);
 
-			linkId2dTT.put(linkId, mappedTT-beelinesTT);
+			linkId2dTT.put(linkId, mappedTT - beelinesTT);
 		}
 
 		// Write deltaTT and link-length for links
 		String file = analysisOut.resolve("busCongestion.csv").toString();
 		BufferedWriter bw = new BufferedWriter(new FileWriter(file));
-		bw.write(String.join(";", "linkId", "length", "deltaTravelTime"));
+		bw.write(String.join(";", "linkId", "length", "beelineTravelTime", "mappedTravelTime", "deltaTravelTime"));
 		bw.newLine();
 
-		for (var e : linkId2dTT.entrySet()){
-			bw.write(e.getKey() + ";" + mappedNetwork.getLinks().get(e.getKey()).getLength() + ";" + e.getValue());
+		for (var e : linkId2dTT.entrySet()) {
+			bw.write(
+				e.getKey() + ";" +
+					mappedNetwork.getLinks().get(e.getKey()).getLength() + ";" +
+					beelinesTtc.getLinkTravelTimes().getLinkTravelTime(beelinesNetwork.getLinks().get(e.getKey()), 0, null, null) + ";" +
+					mappedTtc.getLinkTravelTimes().getLinkTravelTime(mappedNetwork.getLinks().get(e.getKey()), 0, null, null) + ";" +
+					e.getValue());
 			bw.newLine();
 		}
 		bw.close();
